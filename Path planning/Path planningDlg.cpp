@@ -239,7 +239,7 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 	pGrayImg = cvCreateImage(cvGetSize(read_data), read_data->depth, 1);
 	draw_data = cvCreateImage(cvGetSize(read_data), read_data->depth, 3);
 	check_change = cvCreateImage(cvGetSize(read_data), read_data->depth, 1);
-	show_data = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 1);
+	show_data = cvCreateImage(cvSize(88, 88), IPL_DEPTH_8U, 1);
 
 	resize_data = cvCreateImage(cvSize(880, 880), read_data->depth, 3);
 
@@ -248,10 +248,15 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 	int photo_conunt = 0;
 
 	CvPoint start_point, end_point;
-	start_point.x = 140;  //路徑起始與終點，請參照圖片給定
-	start_point.y = 399;
-	end_point.x = 399;
-	end_point.y = 20;
+// 	start_point.x = 140;  //路徑起始與終點，請參照圖片給定
+// 	start_point.y = 399;
+// 	end_point.x = 399;
+// 	end_point.y = 20;
+
+	start_point.x = 280;  //路徑起始與終點，請參照圖片給定
+	start_point.y = 800;
+	end_point.x = 800;
+	end_point.y = 10;
 
 	remove("photo2");
 	_mkdir("photo2");
@@ -321,8 +326,8 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			cvErode(pGrayImg, pGrayImg, pKernel_small, 2);  //侵蝕的相反(因為是白底)
 			cvDilate(pGrayImg, pGrayImg, pKernel_small, 1);  //膨脹的相反
 #else
-			cvDilate(pGrayImg, pGrayImg, pKernel_small, 1);  //侵蝕
-			cvErode(pGrayImg, pGrayImg, pKernel_small, 2);  //膨脹
+			cvDilate(pGrayImg, pGrayImg, pKernel_small, 1);  //膨脹
+			cvErode(pGrayImg, pGrayImg, pKernel_small, 2);  //侵蝕
 #endif	
 
 			cvCvtColor(pGrayImg, draw_data, CV_GRAY2RGB);
@@ -331,7 +336,7 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 						//數值要依據縮小倍率與格點pixel數決定
 
 
-			cvResize(pGrayImg, show_data, CV_INTER_NN);
+			cvResize(pGrayImg, show_data, CV_INTER_LANCZOS4);
 
 
 			//輸入圖片，輸出二值資料
@@ -345,7 +350,7 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			//計算廣義Voronoi，待改
 			Generalized_Voronoi(sca_image, savepoint1, savepoint2, line_count, new_input_index, new_savepoint1, new_savepoint2);
 			//VD點會破碎，將其重新聚合
-			Match_point(line_count, new_input_index, new_savepoint1, new_savepoint2, 1);
+			Match_point(line_count, new_input_index, new_savepoint1, new_savepoint2, 1.2);
 			//Dijkstra路徑搜尋，輸入點連接資訊跟數量
 			Dijkstra_path_planning(start_point, end_point, new_savepoint1, new_savepoint2, new_input_index, all_point_map, all_point_map_original);
 			//路徑優化，輸入二值資訊與原本路徑
@@ -392,43 +397,43 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 
 			//-------------------------------------------繪圖---------------------------------------
 
-//  			IplImage * itest2 = NULL;
-//  			IplImage * itest = NULL;
-//  			itest2 = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 1);
-//  			itest = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 3);
-//  			cvResize(read_data, itest2, CV_INTER_NN);
-//  			cvCvtColor(itest2, itest, CV_GRAY2RGB);
-//  
-//  			for (int i = 0; i < save_coner.size(); i++)  //角點圖
-//  			{
-//  				cvLine(itest, cvPoint(save_coner[i].x , save_coner[i].y ), cvPoint(save_coner[i].x, save_coner[i].y), CV_RGB(0, 250, 250), 1);
-//  			}
-//  			for (int i = 0; i < line_count; i++)   //VD圖
-//  			{
-//  				cvLine(itest, cvPoint(savepoint1[i].x, savepoint1[i].y), cvPoint(savepoint2[i].x, savepoint2[i].y), CV_RGB(250, 200, 100), 1);
-//  			}
-//  			for (int i = 0; i < new_input_index; i++)  //GVD圖
-//  			{
-//  				cvLine(itest, cvPoint(new_savepoint1[i].x, new_savepoint1[i].y), cvPoint(new_savepoint2[i].x, new_savepoint2[i].y), CV_RGB(250, 100, 100), 1);
-//  			}
-//  
-//  			for (int path_index = 0; path_index < show_path.size() - 1; path_index++) //畫出路徑圖
-//  			{
-//  				cvLine(itest, cvPoint(all_point_map[show_path[path_index]].x, all_point_map[show_path[path_index]].y), cvPoint(all_point_map[show_path[path_index + 1]].x, all_point_map[show_path[path_index + 1]].y), CV_RGB(0, 0, 255), 1);
-//  			}
-//  
-//  			for (int path_opt = 0; path_opt < path_optimization.size() - 1; path_opt++) //畫出路徑優化圖
-//  			{
-//  
-//  				cvLine(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), cvPoint(all_point_map[path_optimization[path_opt + 1]].x, all_point_map[path_optimization[path_opt + 1]].y), CV_RGB(0, 150, 0), 1);
-//  
-//  				cvCircle(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), 7, CV_RGB(0, 150, 0), 1);
-//  
-//  			}
-//  
-//  //			cvSaveImage("輸出.png", itest);
-//  			cvSaveImage(write_name, itest);
-//  			cvReleaseImage(&itest);
+ 			IplImage * itest2 = NULL;
+ 			IplImage * itest = NULL;
+ 			itest2 = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 1);
+ 			itest = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 3);
+ 			cvResize(read_data, itest2, CV_INTER_NN);
+ 			cvCvtColor(itest2, itest, CV_GRAY2RGB);
+ 
+ 			for (int i = 0; i < save_coner.size(); i++)  //角點圖
+ 			{
+ 				cvLine(itest, cvPoint(save_coner[i].x , save_coner[i].y ), cvPoint(save_coner[i].x, save_coner[i].y), CV_RGB(0, 250, 250), 1);
+ 			}
+ 			for (int i = 0; i < line_count; i++)   //VD圖
+ 			{
+ 				cvLine(itest, cvPoint(savepoint1[i].x, savepoint1[i].y), cvPoint(savepoint2[i].x, savepoint2[i].y), CV_RGB(250, 200, 100), 1);
+ 			}
+ 			for (int i = 0; i < new_input_index; i++)  //GVD圖
+ 			{
+ 				cvLine(itest, cvPoint(new_savepoint1[i].x, new_savepoint1[i].y), cvPoint(new_savepoint2[i].x, new_savepoint2[i].y), CV_RGB(250, 100, 100), 1);
+ 			}
+ 
+ 			for (int path_index = 0; path_index < show_path.size() - 1; path_index++) //畫出路徑圖
+ 			{
+ 				cvLine(itest, cvPoint(all_point_map[show_path[path_index]].x, all_point_map[show_path[path_index]].y), cvPoint(all_point_map[show_path[path_index + 1]].x, all_point_map[show_path[path_index + 1]].y), CV_RGB(0, 0, 255), 1);
+ 			}
+ 
+ 			for (int path_opt = 0; path_opt < path_optimization.size() - 1; path_opt++) //畫出路徑優化圖
+ 			{
+ 
+ 				cvLine(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), cvPoint(all_point_map[path_optimization[path_opt + 1]].x, all_point_map[path_optimization[path_opt + 1]].y), CV_RGB(0, 150, 0), 1);
+ 
+ 				cvCircle(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), 7, CV_RGB(0, 150, 0), 1);
+ 
+ 			}
+ 
+ //			cvSaveImage("輸出.png", itest);
+ 			cvSaveImage(write_name, itest);
+ 			cvReleaseImage(&itest);
 
 			//-------------------------------------------繪圖---------------------------------------
 		}
@@ -465,7 +470,7 @@ void CPathplanningDlg::binarization(IplImage * i_show_data, vector<vector<bool>>
 		{
 			int temp_of_image = cvGetReal2D(i_show_data, y, x);
 
-			if (temp_of_image == 255)
+			if (temp_of_image > 10)
 				sca_image1.push_back(1);
 			else
 				sca_image1.push_back(0);
@@ -775,13 +780,16 @@ void CPathplanningDlg::Generalized_Voronoi(vector<vector<bool>> i_sca_image, CvP
 		// 
 		// 		}
 
-		if (!line_distant)
+		if (line_distant == 0)
 		{
 			o_new_savepoint1[new_input_index] = i_savepoint1[cheak_point];
 			o_new_savepoint2[new_input_index] = i_savepoint2[cheak_point];
 
-			app_VD_output << o_new_savepoint1[new_input_index].x * (double)10.0 << ", " << o_new_savepoint1[new_input_index].y * (double)10.0 << " 到 " << o_new_savepoint2[new_input_index].x * (double)10.0 << ", " << o_new_savepoint2[new_input_index].y * (double)10.0 << ", 第 " << new_input_index << endl;
-			new_input_index++;
+			if (i_sca_image[round(o_new_savepoint1[new_input_index].y)][round(o_new_savepoint1[new_input_index].x)] == 0 && i_sca_image[round(o_new_savepoint2[new_input_index].y)][round(o_new_savepoint2[new_input_index].x)] == 0)
+			{
+				app_VD_output << o_new_savepoint1[new_input_index].x * (double)10.0 << ", " << o_new_savepoint1[new_input_index].y * (double)10.0 << " 到 " << o_new_savepoint2[new_input_index].x * (double)10.0 << ", " << o_new_savepoint2[new_input_index].y * (double)10.0 << ", 第 " << new_input_index << endl;
+				new_input_index++;
+			}
 		}
 
 		for (int i = 0; i < cutout - 0; i++)
