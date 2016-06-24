@@ -11,7 +11,7 @@
 #include "Voronoi.cpp"
 #include "queue"
 #include "CvvImage.cpp"
-
+#include "direct.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -231,39 +231,47 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 	IplImage * show_data = NULL; //縮小十倍的矩陣
 	IplImage * read_data_old = NULL;
 	IplImage * read_data = NULL;
+	IplImage * resize_data = NULL;
 
-	read_data = cvLoadImage("格點化地圖.bmp", 0);
+
+	read_data = cvLoadImage("path\\L0.png", 0);
 	read_data_old = cvCreateImage(cvGetSize(read_data), read_data->depth, 1);
 	pGrayImg = cvCreateImage(cvGetSize(read_data), read_data->depth, 1);
 	draw_data = cvCreateImage(cvGetSize(read_data), read_data->depth, 3);
 	check_change = cvCreateImage(cvGetSize(read_data), read_data->depth, 1);
-	show_data = cvCreateImage(cvSize(88, 88), IPL_DEPTH_8U, 1);
+	show_data = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 1);
+
+	resize_data = cvCreateImage(cvSize(880, 880), read_data->depth, 3);
 
 	char read_name[100];
 	char write_name[100];
 	int photo_conunt = 0;
 
 	CvPoint start_point, end_point;
-	start_point.x = 280;  //路徑起始與終點，請參照圖片給定
-	start_point.y = 797;
-	end_point.x = 840;
-	end_point.y = 39;
-	
+	start_point.x = 140;  //路徑起始與終點，請參照圖片給定
+	start_point.y = 399;
+	end_point.x = 399;
+	end_point.y = 20;
+
+	remove("photo2");
+	_mkdir("photo2");
+
 	while (true)
-	 {
+	{
 		QueryPerformanceFrequency(&ts);
 		QueryPerformanceCounter(&tStart);
 
-		sprintf_s(read_name, "photo2\\L%d.png", photo_conunt);
+		sprintf_s(read_name, "path\\L%d.png", photo_conunt);
 		sprintf_s(write_name, "photo2\\R%d.png", photo_conunt);
 		fstream in_image0(read_name, ios::in);
+		photo_conunt++;
 
 		if (!in_image0)
 			break;
 
 		read_data = cvLoadImage(read_name, 0);
 
-		
+
 		cvAbsDiff(read_data, read_data_old, check_change);
 		cvResize(read_data, read_data_old, CV_INTER_NN);
 		cvResize(check_change, show_data, CV_INTER_NN);
@@ -289,7 +297,7 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 
 
 
-		if (image_change)
+		if (1)
 		{
 			//-------------------------清除數據------------------------------
 			save_coner.clear();
@@ -306,15 +314,21 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 
 			//---------------------------------------------------------------------
 
- 
+
 			cvResize(read_data, pGrayImg, CV_INTER_NN);//讀黑白影像用的
 	//		cvCvtColor(read_data, pGrayImg, CV_RGB2GRAY);  //讀彩色影像用的
+#if 0
 			cvErode(pGrayImg, pGrayImg, pKernel_small, 2);  //侵蝕的相反(因為是白底)
 			cvDilate(pGrayImg, pGrayImg, pKernel_small, 1);  //膨脹的相反
-			cvCvtColor(pGrayImg, draw_data, CV_GRAY2RGB);
-//			cvSaveImage("給連通物件用的.bmp", pGrayImg);
+#else
+			cvDilate(pGrayImg, pGrayImg, pKernel_small, 1);  //侵蝕
+			cvErode(pGrayImg, pGrayImg, pKernel_small, 2);  //膨脹
+#endif	
 
-			//數值要依據縮小倍率與格點pixel數決定
+			cvCvtColor(pGrayImg, draw_data, CV_GRAY2RGB);
+			//			cvSaveImage("給連通物件用的.bmp", pGrayImg);
+
+						//數值要依據縮小倍率與格點pixel數決定
 
 
 			cvResize(pGrayImg, show_data, CV_INTER_NN);
@@ -323,9 +337,9 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			//輸入圖片，輸出二值資料
 			binarization(show_data, sca_image);
 			//輸入二值資料，輸出角點
-			find_coner(sca_image, save_coner, 4);
+			find_coner(sca_image, save_coner, 2);
 			//將角點轉換為準備要丟入Voronoi運算的格式
-			trans2Voronoi(sca_image, save_coner, Data, 8);
+			trans2Voronoi(sca_image, save_coner, Data, 4);
 			//計算狹義Voronoi，輸入角點資料與邊界，輸出兩個矩陣
 			Voronoi_calculate(Data, show_data->width, show_data->height, savepoint1, savepoint2, line_count);
 			//計算廣義Voronoi，待改
@@ -337,7 +351,7 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			//路徑優化，輸入二值資訊與原本路徑
 			Path_Optimization(sca_image, all_point_map_original, path_optimization);
 
-	
+
 
 			//-------------------------------------------繪圖---------------------------------------
 
@@ -369,50 +383,52 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			}
 
 			cvSaveImage(write_name, draw_data);
-//			m_show2.SetWindowPos(&wndTop, 10, 10, draw_data->width, draw_data->height, SWP_SHOWWINDOW);
+			//			m_show2.SetWindowPos(&wndTop, 10, 10, draw_data->width, draw_data->height, SWP_SHOWWINDOW);
+			cvResize(draw_data, resize_data);
+
 			CvvImage show1;
-			show1.CopyOf(draw_data);
-			show1.Show(*pDC2, 0, 0, draw_data->width, draw_data->height);
+			show1.CopyOf(resize_data);
+			show1.Show(*pDC2, 0, 0, resize_data->width, resize_data->height);
 
 			//-------------------------------------------繪圖---------------------------------------
 
-			IplImage * itest2 = NULL;
-			IplImage * itest = NULL;
-			itest2 = cvCreateImage(cvSize(88, 88), IPL_DEPTH_8U, 1);
-			itest = cvCreateImage(cvSize(88, 88), IPL_DEPTH_8U, 3);
-			cvResize(read_data, itest2, CV_INTER_NN);
-			cvCvtColor(itest2, itest, CV_GRAY2RGB);
-
-			for (int i = 0; i < save_coner.size(); i++)  //角點圖
-			{
-				cvLine(itest, cvPoint(save_coner[i].x , save_coner[i].y ), cvPoint(save_coner[i].x, save_coner[i].y), CV_RGB(0, 250, 250), 1);
-			}
-			for (int i = 0; i < line_count; i++)   //VD圖
-			{
-				cvLine(itest, cvPoint(savepoint1[i].x, savepoint1[i].y), cvPoint(savepoint2[i].x, savepoint2[i].y), CV_RGB(250, 200, 100), 1);
-			}
-			for (int i = 0; i < new_input_index; i++)  //GVD圖
-			{
-				cvLine(itest, cvPoint(new_savepoint1[i].x, new_savepoint1[i].y), cvPoint(new_savepoint2[i].x, new_savepoint2[i].y), CV_RGB(250, 100, 100), 1);
-			}
-
-			for (int path_index = 0; path_index < show_path.size() - 1; path_index++) //畫出路徑圖
-			{
-				cvLine(itest, cvPoint(all_point_map[show_path[path_index]].x, all_point_map[show_path[path_index]].y), cvPoint(all_point_map[show_path[path_index + 1]].x, all_point_map[show_path[path_index + 1]].y), CV_RGB(0, 0, 255), 1);
-			}
-
-			for (int path_opt = 0; path_opt < path_optimization.size() - 1; path_opt++) //畫出路徑優化圖
-			{
-
-				cvLine(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), cvPoint(all_point_map[path_optimization[path_opt + 1]].x, all_point_map[path_optimization[path_opt + 1]].y), CV_RGB(0, 150, 0), 1);
-
-				cvCircle(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), 7, CV_RGB(0, 150, 0), 1);
-
-			}
-
-//			cvSaveImage("輸出.png", itest);
-			cvSaveImage(write_name, itest);
-			cvReleaseImage(&itest);
+//  			IplImage * itest2 = NULL;
+//  			IplImage * itest = NULL;
+//  			itest2 = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 1);
+//  			itest = cvCreateImage(cvSize(40, 40), IPL_DEPTH_8U, 3);
+//  			cvResize(read_data, itest2, CV_INTER_NN);
+//  			cvCvtColor(itest2, itest, CV_GRAY2RGB);
+//  
+//  			for (int i = 0; i < save_coner.size(); i++)  //角點圖
+//  			{
+//  				cvLine(itest, cvPoint(save_coner[i].x , save_coner[i].y ), cvPoint(save_coner[i].x, save_coner[i].y), CV_RGB(0, 250, 250), 1);
+//  			}
+//  			for (int i = 0; i < line_count; i++)   //VD圖
+//  			{
+//  				cvLine(itest, cvPoint(savepoint1[i].x, savepoint1[i].y), cvPoint(savepoint2[i].x, savepoint2[i].y), CV_RGB(250, 200, 100), 1);
+//  			}
+//  			for (int i = 0; i < new_input_index; i++)  //GVD圖
+//  			{
+//  				cvLine(itest, cvPoint(new_savepoint1[i].x, new_savepoint1[i].y), cvPoint(new_savepoint2[i].x, new_savepoint2[i].y), CV_RGB(250, 100, 100), 1);
+//  			}
+//  
+//  			for (int path_index = 0; path_index < show_path.size() - 1; path_index++) //畫出路徑圖
+//  			{
+//  				cvLine(itest, cvPoint(all_point_map[show_path[path_index]].x, all_point_map[show_path[path_index]].y), cvPoint(all_point_map[show_path[path_index + 1]].x, all_point_map[show_path[path_index + 1]].y), CV_RGB(0, 0, 255), 1);
+//  			}
+//  
+//  			for (int path_opt = 0; path_opt < path_optimization.size() - 1; path_opt++) //畫出路徑優化圖
+//  			{
+//  
+//  				cvLine(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), cvPoint(all_point_map[path_optimization[path_opt + 1]].x, all_point_map[path_optimization[path_opt + 1]].y), CV_RGB(0, 150, 0), 1);
+//  
+//  				cvCircle(itest, cvPoint(all_point_map[path_optimization[path_opt]].x, all_point_map[path_optimization[path_opt]].y), 7, CV_RGB(0, 150, 0), 1);
+//  
+//  			}
+//  
+//  //			cvSaveImage("輸出.png", itest);
+//  			cvSaveImage(write_name, itest);
+//  			cvReleaseImage(&itest);
 
 			//-------------------------------------------繪圖---------------------------------------
 		}
@@ -420,22 +436,22 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 
 
 		memset((unsigned char*)show_data->imageData, 0, show_data->imageSize);
- 		cvReleaseImage(&read_data);
+		cvReleaseImage(&read_data);
 
 
-		
+
 		QueryPerformanceCounter(&tEnd);
 
 		m_total_time = 1000 / ((tEnd.QuadPart - tStart.QuadPart) * 1000 / (double)(ts.QuadPart));
 		m_coner_count = Data[0] + 1; //顯示角點數量
 		UpdateData(FALSE);
 
-		photo_conunt++;
+
 
 		DoEvents();
 	}
 
-	
+
 }
 
 
@@ -450,12 +466,12 @@ void CPathplanningDlg::binarization(IplImage * i_show_data, vector<vector<bool>>
 			int temp_of_image = cvGetReal2D(i_show_data, y, x);
 
 			if (temp_of_image == 255)
-				sca_image1.push_back(0);
-			else
 				sca_image1.push_back(1);
-
-			if(x== i_show_data->width - 2)
+			else
 				sca_image1.push_back(0);
+
+			if (x == i_show_data->width - 2)
+				sca_image1.push_back(1);
 		}
 		o_sca_image2.push_back(sca_image1);
 		sca_image1.clear();
@@ -463,7 +479,7 @@ void CPathplanningDlg::binarization(IplImage * i_show_data, vector<vector<bool>>
 
 	for (int x = 0; x < i_show_data->width; x++)
 	{
-		sca_image1.push_back(0);
+		sca_image1.push_back(1);
 	}
 
 	o_sca_image2.push_back(sca_image1);
@@ -558,7 +574,7 @@ void CPathplanningDlg::trans2Voronoi(vector<vector<bool>> i_sca_image, vector<Po
 {
 	int input_Data = 0;
 	int jump_count = 0;
-	jump_count = (i_sca_image.size() + 1) / i_Interpolation2;
+	jump_count = (i_sca_image.size() + 1) / i_Interpolation2 + 1;
 
 	o_Data[0] = i_save_coner.size();
 	for (input_Data = 1; input_Data < i_save_coner.size() + 1; input_Data++)
@@ -570,15 +586,15 @@ void CPathplanningDlg::trans2Voronoi(vector<vector<bool>> i_sca_image, vector<Po
 
 
 
-	for (int i = 0; i <= i_sca_image.size(); i = i + i_Interpolation2)
+	for (int i = 0; i <= i_sca_image.size() + 1; i = i + i_Interpolation2)
 	{
 		for (int j = 0; j <= i_sca_image[0].size() + 1; j = j + i_Interpolation2)
 		{
-			if (i == 0 || i == i_sca_image.size() || j == 0 || j == i_sca_image[0].size() + 1)
+			if (i == 0 || i == i_sca_image.size() || j == 0 || j == i_sca_image[0].size())
 			{
 
-				o_Data[2 * input_Data - 1] = i;
-				o_Data[2 * input_Data] = j;
+				o_Data[2 * input_Data - 1] = i-1;
+				o_Data[2 * input_Data] = j ;
 				input_Data++;
 				o_Data[0]++;
 				//				cvLine(RGB_show_data, cvPoint(i, j),cvPoint(i, j), CV_RGB(200, 200, 0), 1);
@@ -713,10 +729,14 @@ void CPathplanningDlg::Generalized_Voronoi(vector<vector<bool>> i_sca_image, CvP
 		for (cutout = 0; cutout < line_distant; cutout++)
 		{
 			//計算斜線上的點
+
+			double addddd = (sqrt(pow((i_savepoint1[cheak_point].x - i_savepoint2[cheak_point].x), 2)) / (double)line_distant)*(double)cutout;
+			double addddd2 = (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
+
 			if (i_savepoint1[cheak_point].x >= i_savepoint2[cheak_point].x && i_savepoint1[cheak_point].y >= i_savepoint2[cheak_point].y)
 			{
 				cutout_point[cutout].x = i_savepoint2[cheak_point].x + (sqrt(pow((i_savepoint1[cheak_point].x - i_savepoint2[cheak_point].x), 2)) / (double)line_distant)*(double)cutout;
-				cutout_point[cutout].y = i_savepoint1[cheak_point].y - (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
+				cutout_point[cutout].y = i_savepoint2[cheak_point].y + (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
 			}
 
 			if (i_savepoint2[cheak_point].x >= i_savepoint1[cheak_point].x && i_savepoint1[cheak_point].y >= i_savepoint2[cheak_point].y)
@@ -728,34 +748,43 @@ void CPathplanningDlg::Generalized_Voronoi(vector<vector<bool>> i_sca_image, CvP
 			if (i_savepoint1[cheak_point].x >= i_savepoint2[cheak_point].x && i_savepoint2[cheak_point].y >= i_savepoint1[cheak_point].y)
 			{
 				cutout_point[cutout].x = i_savepoint2[cheak_point].x + (sqrt(pow((i_savepoint1[cheak_point].x - i_savepoint2[cheak_point].x), 2)) / (double)line_distant)*(double)cutout;
-				cutout_point[cutout].y = i_savepoint2[cheak_point].y - (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
+				cutout_point[cutout].y = i_savepoint1[cheak_point].y - (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
 			}
 
 			if (i_savepoint2[cheak_point].x >= i_savepoint1[cheak_point].x && i_savepoint2[cheak_point].y >= i_savepoint1[cheak_point].y)
 			{
 				cutout_point[cutout].x = i_savepoint1[cheak_point].x + (sqrt(pow((i_savepoint1[cheak_point].x - i_savepoint2[cheak_point].x), 2)) / (double)line_distant)*(double)cutout;
-				cutout_point[cutout].y = i_savepoint2[cheak_point].y - (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
+				cutout_point[cutout].y = i_savepoint1[cheak_point].y + (sqrt(pow((i_savepoint1[cheak_point].y - i_savepoint2[cheak_point].y), 2)) / (double)line_distant)*(double)cutout;
 			}
 		}
 
-// 		if (cutout < 2)
-// 		{
-// 			if (i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x)] == 0 ||
-// 				i_sca_image[round(cutout_point[0].y + 1)][round(cutout_point[0].x)] == 0 ||
-// 				i_sca_image[round(cutout_point[0].y - 1)][round(cutout_point[0].x)] == 0 ||
-// 				i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x - 1)] == 0 ||
-// 				 i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x + 1)] == 0/**/)
-// 			{
-// 				o_new_savepoint1[new_input_index] = i_savepoint1[cheak_point];
-// 				o_new_savepoint2[new_input_index] = i_savepoint2[cheak_point];
-// 				new_input_index++;
-// 			}
-// 
-// 		}
+		// 		if (cutout < 2)
+		// 		{
+		// 			if (i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x)] == 0 ||
+		// 				i_sca_image[round(cutout_point[0].y + 1)][round(cutout_point[0].x)] == 0 ||
+		// 				i_sca_image[round(cutout_point[0].y - 1)][round(cutout_point[0].x)] == 0 ||
+		// 				i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x - 1)] == 0 ||
+		// 				 i_sca_image[round(cutout_point[0].y)][round(cutout_point[0].x + 1)] == 0/**/)
+		// 			{
+		// 				o_new_savepoint1[new_input_index] = i_savepoint1[cheak_point];
+		// 				o_new_savepoint2[new_input_index] = i_savepoint2[cheak_point];
+		// 				new_input_index++;
+		// 			}
+		// 
+		// 		}
+
+		if (!line_distant)
+		{
+			o_new_savepoint1[new_input_index] = i_savepoint1[cheak_point];
+			o_new_savepoint2[new_input_index] = i_savepoint2[cheak_point];
+
+			app_VD_output << o_new_savepoint1[new_input_index].x * (double)10.0 << ", " << o_new_savepoint1[new_input_index].y * (double)10.0 << " 到 " << o_new_savepoint2[new_input_index].x * (double)10.0 << ", " << o_new_savepoint2[new_input_index].y * (double)10.0 << ", 第 " << new_input_index << endl;
+			new_input_index++;
+		}
 
 		for (int i = 0; i < cutout - 0; i++)
 		{
-			if ((round(cutout_point[i].y)>i_sca_image.size()-1) || (round(cutout_point[i].x) > i_sca_image.size()-1) || (round(cutout_point[i].y) < 1 || (round(cutout_point[i].x) < 1)))
+			if ((round(cutout_point[i].y) > i_sca_image.size() - 1) || (round(cutout_point[i].x) > i_sca_image.size() - 1) || (round(cutout_point[i].y) < 1 || (round(cutout_point[i].x) < 1)))
 			{
 				o_new_savepoint1[new_input_index] = i_savepoint1[cheak_point];
 				o_new_savepoint2[new_input_index] = i_savepoint2[cheak_point];
@@ -972,7 +1001,7 @@ void CPathplanningDlg::Dijkstra_path_planning(CvPoint i_robot_start, CvPoint  i_
 	serch_point[3] = 100000;
 	for (int serch = 0; serch < put_index; serch++)
 	{
-		
+
 		serch_point[0] = sqrt(pow((o_all_point_map[serch].x - i_robot_start.x), 2) + pow((o_all_point_map[serch].y - i_robot_start.y), 2));
 		serch_point[1] = sqrt(pow((o_all_point_map[serch].x - i_robot_end.x), 2) + pow((o_all_point_map[serch].y - i_robot_end.y), 2));
 
@@ -1005,7 +1034,7 @@ void CPathplanningDlg::Path_Optimization(vector<vector<bool>> i_sca_image, vecto
 
 	for (int i = 0; i < show_path.size() - 1; i++)
 	{
-		for (int j = i + 1; j < show_path.size()-1; j++)
+		for (int j = i + 1; j < show_path.size() - 1; j++)
 		{
 
 			line_distant = sqrt(pow(i_all_point_map_original[show_path[i]].x - i_all_point_map_original[show_path[j]].x, 2) + pow(i_all_point_map_original[show_path[i]].y - i_all_point_map_original[show_path[j]].y, 2));
@@ -1023,13 +1052,13 @@ void CPathplanningDlg::Path_Optimization(vector<vector<bool>> i_sca_image, vecto
 				if (i_all_point_map_original[show_path[i]].x >= i_all_point_map_original[show_path[j]].x && i_all_point_map_original[show_path[j]].y >= i_all_point_map_original[show_path[i]].y)
 				{
 					cutout_point[cutout].x = i_all_point_map_original[show_path[j]].x + (sqrt(pow((i_all_point_map_original[show_path[i]].x - i_all_point_map_original[show_path[j]].x), 2)) / (double)line_distant)*(double)cutout;
-					cutout_point[cutout].y = i_all_point_map_original[show_path[i]].y + (sqrt(pow((i_all_point_map_original[show_path[i]].y - i_all_point_map_original[show_path[j]].y), 2)) / (double)line_distant)*(double)cutout;
+					cutout_point[cutout].y = i_all_point_map_original[show_path[j]].y - (sqrt(pow((i_all_point_map_original[show_path[i]].y - i_all_point_map_original[show_path[j]].y), 2)) / (double)line_distant)*(double)cutout;
 				}
 
 				if (i_all_point_map_original[show_path[j]].x >= i_all_point_map_original[show_path[i]].x && i_all_point_map_original[show_path[i]].y >= i_all_point_map_original[show_path[j]].y)
 				{
 					cutout_point[cutout].x = i_all_point_map_original[show_path[i]].x + (sqrt(pow((i_all_point_map_original[show_path[i]].x - i_all_point_map_original[show_path[j]].x), 2)) / (double)line_distant)*(double)cutout;
-					cutout_point[cutout].y = i_all_point_map_original[show_path[j]].y + (sqrt(pow((i_all_point_map_original[show_path[i]].y - i_all_point_map_original[show_path[j]].y), 2)) / (double)line_distant)*(double)cutout;
+					cutout_point[cutout].y = i_all_point_map_original[show_path[i]].y - (sqrt(pow((i_all_point_map_original[show_path[i]].y - i_all_point_map_original[show_path[j]].y), 2)) / (double)line_distant)*(double)cutout;
 				}
 
 				if (i_all_point_map_original[show_path[j]].x >= i_all_point_map_original[show_path[i]].x && i_all_point_map_original[show_path[j]].y >= i_all_point_map_original[show_path[i]].y)
@@ -1044,7 +1073,7 @@ void CPathplanningDlg::Path_Optimization(vector<vector<bool>> i_sca_image, vecto
 				cheak_x = round(cutout_point[cheak_pixel].x);
 				cheak_y = round(cutout_point[cheak_pixel].y);
 
-				if ((cheak_y>i_sca_image.size() - 2) || (cheak_x > i_sca_image.size() - 2) || (cheak_y < 1 || (cheak_x < 1)))
+				if ((cheak_y > i_sca_image.size() - 2) || (cheak_x > i_sca_image.size() - 2) || (cheak_y < 1 || (cheak_x < 1)))
 					continue;
 
 				if (i_sca_image[cheak_y][cheak_x] == 1 ||
