@@ -337,15 +337,15 @@ void CPathplanningDlg::OnBnClickedButtonStart()
 			//輸入圖片，輸出二值資料
 			binarization(show_data, sca_image);
 			//輸入二值資料，輸出角點
-			find_coner(sca_image, save_coner, 2);
+			find_coner(sca_image, save_coner, 4);
 			//將角點轉換為準備要丟入Voronoi運算的格式
-			trans2Voronoi(sca_image, save_coner, Data, 4);
+			trans2Voronoi(sca_image, save_coner, Data, 2);
 			//計算狹義Voronoi，輸入角點資料與邊界，輸出兩個矩陣
 			Voronoi_calculate(Data, show_data->width, show_data->height, savepoint1, savepoint2, line_count);
 			//計算廣義Voronoi，待改
 			Generalized_Voronoi(sca_image, savepoint1, savepoint2, line_count, new_input_index, new_savepoint1, new_savepoint2);
 			//VD點會破碎，將其重新聚合
-			Match_point(line_count, new_input_index, new_savepoint1, new_savepoint2, 2);
+			Match_point(line_count, new_input_index, new_savepoint1, new_savepoint2, 1);
 			//Dijkstra路徑搜尋，輸入點連接資訊跟數量
 			Dijkstra_path_planning(start_point, end_point, new_savepoint1, new_savepoint2, new_input_index, all_point_map, all_point_map_original);
 			//路徑優化，輸入二值資訊與原本路徑
@@ -471,7 +471,7 @@ void CPathplanningDlg::binarization(IplImage * i_show_data, vector<vector<bool>>
 				sca_image1.push_back(0);
 
 			if (x == i_show_data->width - 2)
-				sca_image1.push_back(1);
+				sca_image1.push_back(0);
 		}
 		o_sca_image2.push_back(sca_image1);
 		sca_image1.clear();
@@ -479,7 +479,7 @@ void CPathplanningDlg::binarization(IplImage * i_show_data, vector<vector<bool>>
 
 	for (int x = 0; x < i_show_data->width; x++)
 	{
-		sca_image1.push_back(1);
+		sca_image1.push_back(0);
 	}
 
 	o_sca_image2.push_back(sca_image1);
@@ -593,14 +593,16 @@ void CPathplanningDlg::trans2Voronoi(vector<vector<bool>> i_sca_image, vector<Po
 			if (i == 0 || i == i_sca_image.size() || j == 0 || j == i_sca_image[0].size())
 			{
 
-				o_Data[2 * input_Data - 1] = i-1;
-				o_Data[2 * input_Data] = j ;
+				o_Data[2 * input_Data - 1] = i;
+				o_Data[2 * input_Data] = j;
+
 				input_Data++;
 				o_Data[0]++;
 				//				cvLine(RGB_show_data, cvPoint(i, j),cvPoint(i, j), CV_RGB(200, 200, 0), 1);
 			}
 		}
 	}
+	int a = 001;
 }
 
 void CPathplanningDlg::Voronoi_calculate(double i_Data[8000], int x_boundary, int y_boundary, CvPoint2D64f(&o_savepoint1)[3000], CvPoint2D64f(&o_savepoint2)[3000], int &o_line_count)
